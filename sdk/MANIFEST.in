@@ -1,0 +1,3 @@
+include pyproject.toml setup.py compatibility.json verify_native.py
+recursive-include python *.py
+recursive-include lib *

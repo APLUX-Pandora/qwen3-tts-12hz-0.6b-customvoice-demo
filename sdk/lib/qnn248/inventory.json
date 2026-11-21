@@ -1,0 +1,79 @@
+{
+  "files": [
+    {
+      "path": "LICENSE.pdf",
+      "bytes": 147577,
+      "sha256": "ec1dccfdcba5c6e64126e84199b8362bf4999107bfa567ebe831dbb4c461692b"
+    },
+    {
+      "path": "NOTICE.txt",
+      "bytes": 130445,
+      "sha256": "0c5e8aad3506d0ab881cabaf0dae8de64e1784dc1ee6c873caf24a78fbf01924"
+    },
+    {
+      "path": "QNN_NOTICE.txt",
+      "bytes": 130445,
+      "sha256": "0c5e8aad3506d0ab881cabaf0dae8de64e1784dc1ee6c873caf24a78fbf01924"
+    },
+    {
+      "path": "QNN_README.txt",
+      "bytes": 1346,
+      "sha256": "de04c22b9ae9df70ebdbad878e6004abf249e84772bf4ef90681adc7545b739b"
+    },
+    {
+      "path": "dsp/v68/libQnnHtpV68Skel.so",
+      "bytes": 10240924,
+      "sha256": "c479454dc21dc1ee2995aaf922b37882684306f864259ea3c582aa2cfb2f81ca"
+    },
+    {
+      "path": "dsp/v73/libQnnHtpV73Skel.so",
+      "bytes": 11531512,
+      "sha256": "561d69a9cd131918cb8e0a0e34aafd0e94b3571b10317b0ee478dd137c74bc8c"
+    },
+    {
+      "path": "dsp/v75/libQnnHtpV75Skel.so",
+      "bytes": 11535612,
+      "sha256": "cd7a66b593e931cb542da2551e245dad22fdd73bb6caa7d6e2dd818f9aaa55dd"
+    },
+    {
+      "path": "dsp/v81/libQnnHtpV81Skel.so",
+      "bytes": 12610736,
+      "sha256": "87e6463b4b4441eedb1b2ae889443510249eae4d6533278d3a5c798b8eea25d1"
+    },
+    {
+      "path": "host/libQnnHtp.so",
+      "bytes": 4398216,
+      "sha256": "e39833db75eb779a966fea65f835c32bcb2cfee4e87c41db8bbffab2f5a9a748"
+    },
+    {
+      "path": "host/libQnnHtpV68Stub.so",
+      "bytes": 477256,
+      "sha256": "4d12dc9715e3cf59055eb8c93a005a8b62fd78618a9677e3f0609e689d373296"
+    },
+    {
+      "path": "host/libQnnHtpV73Stub.so",
+      "bytes": 485448,
+      "sha256": "1397c6720c1c680e99675ac1f82bb7d2f5a3ce06751affd9be91dbd07bad8aa4"
+    },
+    {
+      "path": "host/libQnnHtpV75Stub.so",
+      "bytes": 485448,
+      "sha256": "cebb3ddeee36e52b682fe9a58a7d0d7a32a4834767834a1192551a276016f983"
+    },
+    {
+      "path": "host/libQnnHtpV81Stub.so",
+      "bytes": 501832,
+      "sha256": "9e6ef721699de2a65755d86471a595e1a3d413167b5174379f081b654ce1667c"
+    },
+    {
+      "path": "host/libQnnSystem.so",
+      "bytes": 5455128,
+      "sha256": "961c456c791786217f5cd298fb983f1569c5ee3e6e2e21e0bea07ba6dfc4f78d"
+    },
+    {
+      "path": "sdk.yaml",
+      "bytes": 975,
+      "sha256": "102a8b8a5e186660a352dfb0ac26c3373688fe7c62852fba675b5ea0c16563a6"
+    }
+  ]
+}

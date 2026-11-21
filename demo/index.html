@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Qwen3-TTS-12Hz-0.6B-CustomVoice</title>
+<link rel="icon" type="image/svg+xml" href="/static/pandora-mark.svg">
+<style>
+  /* one light theme for the whole page: background / cards / controls / visualization share the same palette */
+  :root { color-scheme: light;
+          --bg:#f6f8fa; --card:#ffffff; --field:#ffffff; --soft:#f6f8fa; --line:#d0d7de; --fg:#1f2328; --muted:#656d76;
+          --accent:#0969da; --accent-2:#54aeff; --ok:#1a7f37; --bad:#cf222e; --warn:#9a6700; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:15px/1.5 system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+         color:var(--fg); background:var(--bg); }
+  main { max-width:1200px; margin:0 auto; padding:24px 16px; }
+  /* title row: page title on the left, brand (APLUX logo | Pandora mark + name) on the right */
+  header { display:flex; align-items:center; flex-wrap:wrap; gap:16px; margin:0 0 4px; }
+  .brand { display:flex; align-items:center; gap:14px; margin-left:auto; flex:none; }
+  .brand img { display:block; flex:none; }
+  .brand .logo { height:26px; width:auto; }
+  .brand .divider { width:1px; height:22px; background:var(--line); }
+  .brand .mark { height:26px; width:26px; }
+  .brand .name { font-size:17px; font-weight:700; color:var(--fg); margin-left:-6px; }
+  h1 { font-size:20px; margin:0; }
+  .sub { color:var(--muted); font-size:13px; margin-bottom:16px; }
+  .layout { display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:stretch; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; }
+
+  /* left: input */
+  .input { display:flex; flex-direction:column; min-height:560px; }
+  textarea { flex:1; width:100%; min-height:240px; resize:none; font:inherit; padding:12px; color:var(--fg);
+             background:var(--field); border:1px solid var(--line); border-radius:8px; }
+  textarea:focus, select:focus, input:focus { outline:none; border-color:var(--accent); }
+  .count { font-size:12px; color:var(--muted); text-align:right; margin-top:4px; }
+  .box-head { display:flex; align-items:center; gap:10px; margin:16px 0 6px; font-size:13px; color:var(--muted); }
+  .box-head b { color:var(--fg); font-weight:600; }
+  textarea.sample { flex:none; height:150px; min-height:0; background:var(--soft); }
+  button.small { padding:5px 14px; }
+  .row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-top:12px; }
+  label { color:var(--muted); font-size:13px; }
+  select, input[type=number] { font:inherit; padding:6px 8px; color:var(--fg); background:var(--field);
+                               border:1px solid var(--line); border-radius:6px; }
+  input[type=number] { width:90px; }
+  .buttons { display:flex; gap:10px; margin-top:16px; }
+  button { font:inherit; padding:9px 22px; border-radius:6px; border:1px solid var(--accent); background:var(--accent);
+           color:#fff; cursor:pointer; }
+  button:disabled { opacity:.45; cursor:default; }
+  button.ghost { background:var(--card); color:var(--accent); border-color:var(--line); }
+  .grow { flex:1; }
+  .hint { font-size:13px; color:var(--warn); margin-top:8px; min-height:0; }
+  .speaker-info { font-size:13px; color:var(--muted); margin-top:10px; padding:8px 12px; background:var(--soft);
+                  border:1px solid var(--line); border-radius:6px; }
+  .speaker-info b { color:var(--fg); font-weight:600; }
+
+  /* right: output */
+  .output { display:flex; flex-direction:column; gap:14px; }
+  #viz { display:block; width:100%; height:190px; background:var(--soft); border:1px solid var(--line);
+         border-radius:8px; }
+  .progress { height:6px; background:var(--soft); border:1px solid var(--line); border-radius:3px; overflow:hidden; }
+  .progress > div { height:100%; width:0; background:var(--accent); transition:width .3s; }
+  .progress-label { display:flex; justify-content:space-between; font-size:12px; color:var(--muted); margin-top:4px; }
+  #status { font-size:14px; min-height:21px; color:var(--muted); }
+  #status.ok { color:var(--ok); } #status.bad { color:var(--bad); }
+  .stats { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:auto; }
+  .stat { background:var(--soft); border:1px solid var(--line); border-radius:8px; padding:8px 12px; }
+  .stat b { display:block; font-size:18px; font-weight:600; }
+  .stat span { color:var(--muted); font-size:12px; }
+
+  @media (max-width: 900px) {
+    .layout { grid-template-columns:1fr; }
+    .input { min-height:0; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Qwen3-TTS-12Hz-0.6B-CustomVoice · streaming text to speech</h1>
+    <div class="brand"><img class="logo" src="/static/logo.png" alt="APLUX"><span class="divider"></span>
+      <img class="mark" src="/static/pandora-mark.svg" alt=""><span class="name">Pandora</span></div>
+  </header>
+  <div class="sub">Runs on the device's NPU. The audio plays while it is being generated; text of any length is split
+    at sentence ends and played as one continuous stream.</div>
+
+  <div class="layout">
+    <section class="card input">
+      <div class="row" style="margin-top:0">
+        <label>Speaker
+          <select id="speaker"></select>
+        </label>
+        <label>Language
+          <select id="language">
+            <option value="chinese">Chinese</option>
+            <option value="english" selected>English</option>
+            <option value="japanese">Japanese</option>
+            <option value="korean">Korean</option>
+            <option value="german">German</option>
+            <option value="french">French</option>
+            <option value="russian">Russian</option>
+            <option value="portuguese">Portuguese</option>
+            <option value="spanish">Spanish</option>
+            <option value="italian">Italian</option>
+          </select>
+        </label>
+        <label>Seed <input id="seed" type="number" value="1" min="0"></label>
+      </div>
+      <div id="speaker-info" class="speaker-info"></div>
+      <div id="voice-hint" class="hint"></div>
+      <div class="box-head"><b>Sample</b><span id="sample-lang"></span><span class="grow"></span>
+        <button id="stop-sample" class="ghost small" disabled>Stop</button>
+        <button id="play-sample" class="small">Play sample</button></div>
+      <textarea id="sample" class="sample" readonly></textarea>
+      <div class="box-head"><b>Your text</b><span class="grow"></span><span id="count"></span></div>
+      <textarea id="text" placeholder="Type or paste text of any length"></textarea>
+      <div class="buttons">
+        <button id="dl" class="ghost" disabled>Download wav</button>
+        <span class="grow"></span>
+        <button id="stop" class="ghost" disabled>Stop</button>
+        <button id="run">Run</button>
+      </div>
+    </section>
+
+    <section class="card output">
+      <canvas id="viz"></canvas>
+      <div>
+        <div class="progress"><div id="seg-bar"></div></div>
+        <div class="progress-label"><span>Segments</span><span id="seg-label">–</span></div>
+      </div>
+      <div id="status">Ready</div>
+      <div class="stats">
+        <div class="stat"><b id="s-first">–</b><span>click to sound</span></div>
+        <div class="stat"><b id="s-audio">–</b><span>audio</span></div>
+        <div class="stat"><b id="s-total">–</b><span>generation time</span></div>
+        <div class="stat"><b id="s-rtf">–</b><span>RTF (time / audio)</span></div>
+        <div class="stat"><b id="s-stall">–</b><span>playback gaps</span></div>
+        <div class="stat"><b id="s-chunks">–</b><span>chunks</span></div>
+        <div class="stat"><b id="s-ahead">–</b><span>generated ahead of playback</span></div>
+      </div>
+    </section>
+  </div>
+</main>
+<script>
+const SR = 24000, LEAD = 0.50;           // absorb short variations in chunk generation before playback
+let ctx = null, sources = [], rid = null, ctrl = null, analyser = null, completion = null;
+const $ = id => document.getElementById(id);
+
+function setStat(id, v) { $(id).textContent = v; }
+function status(msg, cls) { const s = $("status"); s.textContent = msg; s.className = cls || ""; }
+function progress(done, total) {
+  $("seg-bar").style.width = total ? `${100 * done / total}%` : "0";
+  $("seg-label").textContent = total ? `${done} / ${total}` : "–";
+}
+
+async function run(box = "text") {
+  const text = $(box).value.trim();
+  if (!text) { status(box === "sample" ? "No sample for this language" : "Enter some text", "bad"); return; }
+  if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: SR });
+  await ctx.resume();
+  if (!analyser) {                        // every chunk plays through one analyser, which feeds the visualization
+    analyser = ctx.createAnalyser(); analyser.fftSize = 2048; analyser.smoothingTimeConstant = 0.75;
+    analyser.connect(ctx.destination);
+  }
+  stopPlayback();
+  rid = null; $("run").disabled = $("play-sample").disabled = true;
+  $("stop").disabled = $("stop-sample").disabled = false; $("dl").disabled = true;
+  ["s-first", "s-audio", "s-total", "s-rtf", "s-stall", "s-chunks", "s-ahead"].forEach(i => setStat(i, "…"));
+  progress(0, 0);
+  status("Generating…");
+  const t0 = performance.now();
+  let next = 0, chunks = 0, stalls = 0, gap = 0, audio = 0, nseg = 0, stopped = false;
+
+  function play(i16) {
+    const f = new Float32Array(i16.length);
+    for (let i = 0; i < i16.length; i++) f[i] = i16[i] / 32768;
+    const b = ctx.createBuffer(1, f.length, SR); b.copyToChannel(f, 0);
+    const src = ctx.createBufferSource(); src.buffer = b; src.connect(analyser);
+    src.onended = () => {
+      const k = sources.indexOf(src);
+      if (k < 0) return;
+      sources.splice(k, 1);
+      src.disconnect();
+      updatePlaybackControls();
+    };
+    const now = ctx.currentTime;
+    let at;
+    if (chunks === 0) {
+      at = now + LEAD;
+      setStat("s-first", ((performance.now() - t0) / 1000 + LEAD).toFixed(2) + " s");
+    }
+    else if (now > next) { stalls++; gap += now - next; at = now + 0.01; }   // arrived after the previous one ended
+    else at = next;
+    src.start(at); sources.push(src);
+    next = at + b.duration; chunks++; audio += b.duration;
+    setStat("s-chunks", chunks); setStat("s-audio", fmt(audio));
+    setStat("s-ahead", Math.max(0, next - ctx.currentTime).toFixed(1) + " s");
+    setStat("s-stall", stalls ? `${stalls} / ${gap.toFixed(2)} s` : "0");
+  }
+
+  ctrl = new AbortController();
+  try {
+    const r = await fetch("/tts", {
+      method: "POST", headers: { "Content-Type": "application/json" }, signal: ctrl.signal,
+      body: JSON.stringify({ text, speaker: $("speaker").value, language: $("language").value,
+                seed: +$("seed").value || 0 }) });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const reader = r.body.getReader();
+    let buf = new Uint8Array(0);
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const nb = new Uint8Array(buf.length + value.length); nb.set(buf); nb.set(value, buf.length); buf = nb;
+      while (buf.length >= 5) {
+        const type = buf[0], len = new DataView(buf.buffer, buf.byteOffset + 1, 4).getUint32(0, true);
+        if (buf.length < 5 + len) break;
+        const payload = buf.slice(5, 5 + len); buf = buf.slice(5 + len);
+        if (type === 0) play(new Int16Array(payload.buffer));
+        else if (type === 3) {
+          const ev = JSON.parse(new TextDecoder().decode(payload));
+          if (ev.event === "start") {
+            rid = ev.id; nseg = ev.segments; progress(0, nseg);
+          }
+          else if (ev.event === "segment") {
+            progress(ev.index + 1, nseg);
+            if (ev.flag) status(`Segment ${ev.index + 1}: ${ev.flag}`, "bad");
+          }
+        } else if (type === 1) {
+          const st = JSON.parse(new TextDecoder().decode(payload));
+          stopped = !!st.stopped;
+          if (st.total_s !== undefined) { setStat("s-total", fmt(st.total_s)); setStat("s-rtf", st.rtf.toFixed(2)); }
+          if (st.flags && st.flags.length) status("Note: segment flags " + JSON.stringify(st.flags), "bad");
+        } else if (type === 2) throw new Error(new TextDecoder().decode(payload));
+      }
+    }
+    if (!$("status").textContent.startsWith("Note") && !$("status").textContent.startsWith("Segment")) {
+      const done = stalls ? `Done, ${stalls} gaps during playback` : "Done, continuous playback";
+      completion = { message: stopped ? "Stopped" : done, cls: stalls ? "bad" : "ok" };
+      status(sources.length && !stopped ? "Generated; playing remaining audio…" : completion.message, completion.cls);
+    }
+    $("dl").disabled = !rid;
+  } catch (e) {
+    if (e.name === "AbortError") status("Stopped"); else status("Error: " + e.message, "bad");
+  } finally {
+    $("run").disabled = $("play-sample").disabled = false;
+    ctrl = null;
+    updatePlaybackControls();
+  }
+}
+
+function fmt(s) { return s >= 60 ? `${Math.floor(s / 60)} min ${(s % 60).toFixed(0)} s` : s.toFixed(2) + " s"; }
+function updatePlaybackControls() {
+  const active = !!ctrl || sources.length > 0;
+  $("stop").disabled = $("stop-sample").disabled = !active;
+  if (!active && completion) status(completion.message, completion.cls);
+}
+function stopPlayback() {
+  completion = null;
+  sources.forEach(s => { s.onended = null; try { s.stop(); } catch (e) {} s.disconnect(); });
+  sources = [];
+  updatePlaybackControls();
+}
+const cap = s => s[0].toUpperCase() + s.slice(1);
+function updateCount() {
+  const n = $("text").value.length;
+  $("count").textContent = n ? `${n} characters` : "";
+}
+
+// The built-in speakers with their voice description and native language. Every
+// speaker can speak all 10 languages; the native language gives the best results, other combinations may sound
+// unstable (filler sounds, wrong words, very long output). Picking a language selects a native speaker when there is
+// one.
+const SPEAKERS = [
+  ["vivian", "Vivian", "Bright young female voice", "chinese", "Chinese"],
+  ["serena", "Serena", "Warm, gentle young female voice", "chinese", "Chinese"],
+  ["uncle_fu", "Uncle Fu", "Seasoned male voice, mellow timbre", "chinese", "Chinese"],
+  ["dylan", "Dylan", "Youthful Beijing male voice", "chinese", "Chinese (Beijing dialect)"],
+  ["eric", "Eric", "Lively Chengdu male voice", "chinese", "Chinese (Sichuan dialect)"],
+  ["ryan", "Ryan", "Dynamic male voice with rhythm", "english", "English"],
+  ["aiden", "Aiden", "Sunny American male voice", "english", "English"],
+  ["ono_anna", "Ono Anna", "Playful Japanese female voice", "japanese", "Japanese"],
+  ["sohee", "Sohee", "Warm Korean female voice", "korean", "Korean"],
+];
+const NATIVE = Object.fromEntries(SPEAKERS.map(s => [s[0], s[3]]));
+const DEFAULT_SPEAKER = { chinese: "vivian", english: "aiden", japanese: "ono_anna", korean: "sohee" };
+SPEAKERS.forEach(([id, name, , , native]) =>
+  $("speaker").add(new Option(`${name} - ${native}`, id, id === "aiden", id === "aiden")));
+function speakerInfo() {
+  const s = SPEAKERS.find(x => x[0] === $("speaker").value);
+  $("speaker-info").innerHTML = `<b>${s[1]}</b> &middot; ${s[2]} &middot; native language: <b>${s[4]}</b>`;
+}
+function voiceHint() {
+  const spk = $("speaker").value, lang = $("language").value;
+  const name = SPEAKERS.find(x => x[0] === spk)[1];
+  const lname = cap(lang);
+  let msg = "";
+  if (!DEFAULT_SPEAKER[lang]) msg = `No speaker has ${lname} as native language: the result may be unstable.`;
+  else if (NATIVE[spk] !== lang) msg = `${name} is not a native ${lname} speaker: the result may be unstable.`;
+  $("voice-hint").textContent = msg;
+  speakerInfo();
+}
+$("language").addEventListener("change", () => {
+  const lang = $("language").value;
+  if (DEFAULT_SPEAKER[lang] && NATIVE[$("speaker").value] !== lang) $("speaker").value = DEFAULT_SPEAKER[lang];
+  voiceHint();
+});
+$("speaker").addEventListener("change", voiceHint);
+voiceHint();
+
+// The sample box contains one read-only text per declared language.
+let SAMPLES = {};
+function showSample() {
+  const sel = $("language");
+  $("sample").value = SAMPLES[sel.value] || "";
+  $("sample-lang").textContent = sel.options[sel.selectedIndex].text;
+}
+$("language").addEventListener("change", showSample);
+fetch("/samples").then(r => r.json()).then(s => { SAMPLES = s; showSample(); }).catch(() => {});
+
+// Visualization of the audio being played (not the audio being generated): mirrored bars from the analyser's
+// spectrum, low frequencies in the middle, symmetric around the horizontal centre line.
+const NBARS = 56, MAX_HZ = 5000;          // speech energy sits below ~5 kHz
+let vizFreq = null;
+function barLevels() {
+  const n = analyser ? analyser.frequencyBinCount : 0, top = Math.floor(n * MAX_HZ / (SR / 2));
+  const lv = new Array(NBARS).fill(0);
+  if (!n) return lv;
+  if (!vizFreq) vizFreq = new Uint8Array(n);
+  analyser.getByteFrequencyData(vizFreq);
+  for (let i = 0; i < NBARS; i++) {
+    const a = Math.floor(top * i / NBARS), b = Math.max(a + 1, Math.floor(top * (i + 1) / NBARS));
+    let s = 0; for (let k = a; k < b; k++) s += vizFreq[k];
+    lv[i] = s / (b - a) / 255;
+  }
+  return lv;
+}
+function drawViz() {
+  const cv = $("viz"), dpr = window.devicePixelRatio || 1, W = cv.clientWidth * dpr, H = cv.clientHeight * dpr;
+  if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+  const g = cv.getContext("2d"), css = getComputedStyle(document.documentElement);
+  const grad = g.createLinearGradient(0, 0, W, 0);
+  grad.addColorStop(0, css.getPropertyValue("--accent").trim());
+  grad.addColorStop(0.5, css.getPropertyValue("--accent-2").trim());
+  grad.addColorStop(1, css.getPropertyValue("--accent").trim());
+  g.clearRect(0, 0, W, H); g.fillStyle = grad;
+  const lv = barLevels(), pad = 12 * dpr, gap = 4 * dpr, bw = (W - 2 * pad - gap * (NBARS - 1)) / NBARS;
+  const r = Math.min(bw / 2, 3 * dpr);
+  for (let i = 0; i < NBARS; i++) {
+    const v = lv[Math.abs(i - (NBARS - 1) / 2) * 2 | 0];
+    const h = Math.max(4 * dpr, v * (H - 2 * pad)), x = pad + i * (bw + gap), y = (H - h) / 2;
+    g.beginPath();
+    if (g.roundRect) g.roundRect(x, y, bw, h, r); else g.rect(x, y, bw, h);
+    g.fill();
+  }
+  requestAnimationFrame(drawViz);
+}
+requestAnimationFrame(drawViz);
+
+$("run").onclick = () => run("text");
+$("play-sample").onclick = () => run("sample");
+$("stop").onclick = $("stop-sample").onclick = () => {
+  if (ctrl) ctrl.abort();
+  stopPlayback();
+  status("Stopped");
+};
+$("dl").onclick = () => { if (rid) { const a = document.createElement("a"); a.href = "/wav/" + rid; a.click(); } };
+$("text").addEventListener("input", updateCount); updateCount();
+$("text").addEventListener("keydown", e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) run("text"); });
+</script>
+</body>
+</html>

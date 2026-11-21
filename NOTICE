@@ -1,0 +1,56 @@
+Qwen3-TTS-12Hz-0.6B-CustomVoice
+==================================
+
+This repository contains an on-device text-to-speech package for Qualcomm NPUs: a prebuilt inference library
+(sdk/lib/libqwen3_tts.so) with its C header and Python binding, Python examples and a web demo.
+APLUX application/business code is under Apache-2.0; proprietary SDK binaries are separately licensed.
+See LICENSING.md and LICENSES/Apache-2.0.txt.
+
+Model files
+-----------
+The model files (quantized QNN context binaries and host-side tensors) are not distributed in this repository; they
+are downloaded separately (see models/README.md) and come with their own license terms.
+
+Third-party components
+----------------------
+sdk/lib/libqwen3_tts.so includes nlohmann/json 3.12.0
+  Copyright (c) 2013-2025 Niels Lohmann <https://nlohmann.me>
+  License: MIT
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+  documentation files (the "Software"), to deal in the Software without restriction, including without limitation the
+  rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit
+  persons to whom the Software is furnished to do so, subject to the following conditions:
+  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the
+  Software.
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+  WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+  COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+  OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+The reused APLUX native byte-level BPE encoder portion retains Apache-2.0 rights.
+Its namespace and error conventions are adapted for this SDK; see LICENSES/Apache-2.0.txt.
+
+The native tokenizer uses pinned ICU 70.1-2 for Unicode NFC normalization and regular expressions.
+  Copyright (c) 1991-2021 Unicode, Inc.
+  See LICENSES/ICU-copyright.txt. ICU code and complete Unicode data are statically bundled. See also LICENSES/ICU-LICENSE.txt.
+
+The SDK statically includes the OpenSSL crypto library (Apache-2.0).
+Model files use the AIDEM format and are loaded automatically by the matching SDK.
+See sdk/lib/LICENSES/OpenSSL-copyright.txt and Apache-2.0.txt for the original terms.
+
+Bundled QNN runtime
+-------------------
+The SDK includes unchanged Qualcomm QNN user-space runtime components beside the model library.
+Their original terms and notices are in sdk/lib/qnn248/LICENSE.pdf, NOTICE.txt and QNN_NOTICE.txt.
+The statically embedded Pandora QNN integration code is Apache-2.0; see sdk/lib/LICENSES/Apache-2.0.txt.
+Aidlux LMS and compatible BSP/FastRPC, drivers, firmware and system libraries remain external prerequisites.
+
+Demo content
+------------
+demo/samples/ and examples/text/ hold texts written for this demo; demo/static/ holds the logos of the page.
+
+Upstream portions
+-----------------
+Upstream model weights, tensors and third-party software retain their applicable Apache-2.0 or other original rights.
+APLUX adaptations and delivery notices do not revoke those rights; see LICENSES/Apache-2.0.txt.

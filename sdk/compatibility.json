@@ -1,0 +1,12 @@
+{
+  "sdk_version": "1.0.0",
+  "native_runtime_abi": 4,
+  "native_library_sha256": "32f7a198ec1eeab923f0f5ecaa16aacb1ee69804f654c003d320241c48e04756",
+  "prepared_targets": [
+    "qcs8550_qnn248",
+    "qcs8625_qnn248",
+    "qcs8275_qnn248",
+    "qcs9075_qnn248"
+  ],
+  "models_format_version": 2
+}

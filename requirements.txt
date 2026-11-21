@@ -1,0 +1,5 @@
+# Install the same inference SDK used by examples and the Web application.
+./sdk
+soundfile>=0.12,<0.14
+flask>=2.3,<4
+huggingface_hub>=1.0,<2
