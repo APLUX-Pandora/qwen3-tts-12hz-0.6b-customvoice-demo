@@ -9,7 +9,77 @@ Streaming text-to-speech with nine built-in voices and ten explicit text languag
 
 Based on [Qwen3-TTS-12Hz-0.6B-CustomVoice](https://huggingface.co/Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice).
 
-**Demo recording:** reserved for a post-release recording.
+**Demo recordings**
+
+<details open>
+<summary>Chinese · Vivian</summary>
+
+https://github.com/user-attachments/assets/06c64c63-5e1b-4384-8291-423ddfd7fcb7
+
+</details>
+
+<details>
+<summary>English · Aiden</summary>
+
+https://github.com/user-attachments/assets/a11c1e86-3361-4a72-a039-bc579c637839
+
+</details>
+
+<details>
+<summary>Japanese · Ono Anna</summary>
+
+https://github.com/user-attachments/assets/c922da40-3732-4908-b281-42c279d9a765
+
+</details>
+
+<details>
+<summary>Korean · Sohee</summary>
+
+https://github.com/user-attachments/assets/ee21f1b6-5759-4d45-9216-48d07896ecbc
+
+</details>
+
+<details>
+<summary>German · Vivian</summary>
+
+https://github.com/user-attachments/assets/5239659f-ab02-4736-98f6-e274b4fa9155
+
+</details>
+
+<details>
+<summary>French · Vivian</summary>
+
+https://github.com/user-attachments/assets/92ee0066-841b-4091-879a-61b14546c178
+
+</details>
+
+<details>
+<summary>Russian · Vivian</summary>
+
+https://github.com/user-attachments/assets/955b2e15-8331-4a35-852b-f54e2ab103fe
+
+</details>
+
+<details>
+<summary>Portuguese · Vivian</summary>
+
+https://github.com/user-attachments/assets/77bb82bd-af26-49ac-baf8-8d96702fc463
+
+</details>
+
+<details>
+<summary>Spanish · Vivian</summary>
+
+https://github.com/user-attachments/assets/da1b39dc-f435-4f91-8101-6d9268a8ef42
+
+</details>
+
+<details>
+<summary>Italian · Vivian</summary>
+
+https://github.com/user-attachments/assets/a07c74d4-500b-479b-89e9-0ea4c7d2dc27
+
+</details>
 
 ## 1. Install
 
