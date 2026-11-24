@@ -22,14 +22,13 @@ class TTSModel(ModelOwner):
     _capabilities = TTSCapabilities(True, False, True, True)
 
     @classmethod
-    def from_pretrained(cls, model_dir=None, *, library=None, runtime=None):
+    def from_pretrained(cls, model_dir, *, runtime=None):
         if runtime is not None and not isinstance(runtime, Runtime):
             raise TypeError("runtime must be this SDK Runtime")
         model = cls.__new__(cls)
         model._ownership()
         model._native = None
-        model.runtime = runtime if runtime is not None else Runtime()
-        model._owns_runtime = runtime is None
+        model.runtime = runtime
         try:
             model.model_dir = resolve_model_dir(model_dir)
             model._native = _Native.__new__(_Native)
@@ -37,7 +36,7 @@ class TTSModel(ModelOwner):
             import ctypes
             model._native._slot = ctypes.c_void_p()
             with native_signals():
-                model._native.__init__(model.model_dir, library=library, runtime=model.runtime)
+                model._native.__init__(model.model_dir, runtime=model.runtime)
             native = model._native
             model.sample_rate = native.sampling_rate
             from types import MappingProxyType
@@ -54,8 +53,6 @@ class TTSModel(ModelOwner):
             if model._native is not None:
                 with native_signals():
                     model._native.close()
-            if model._owns_runtime:
-                model.runtime.close()
             if isinstance(exc, (KeyboardInterrupt, SystemExit)):
                 raise
             raise error(exc, TTSLoadError) from exc
@@ -125,11 +122,6 @@ class TTSModel(ModelOwner):
                 failure = exc
             if not self._native._slot.value:
                 self._native = None
-        if self._owns_runtime:
-            try:
-                self.runtime.close()
-            except BaseException as exc:
-                if failure is None: failure = exc
         if failure is not None:
             if isinstance(failure, (KeyboardInterrupt, SystemExit)): raise failure
             raise error(failure, TTSStateError) from failure

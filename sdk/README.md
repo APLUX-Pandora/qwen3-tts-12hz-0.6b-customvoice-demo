@@ -11,13 +11,14 @@ This SDK loads Qwen3-TTS-12Hz-0.6B-CustomVoice and produces complete or streamed
 | `lib/` | Prebuilt native library with its QNN runtime |
 | `SHA256SUMS` | Checksums of the shipped files |
 
-From `sdk/`, run `sha256sum -c SHA256SUMS` to verify the native libraries, headers, and Python package files. The native library and runtime also have a self-contained list at `lib/SHA256SUMS`.
+From `sdk/`, run `sha256sum -c SHA256SUMS` to verify the native libraries, headers, Python package files, and shared Runtime wheel. The model library and its bundled QNN libraries also have a list at `lib/SHA256SUMS`.
 
 ## Install
 
 In your application's activated Python 3.10–3.12 environment, from the Demo root:
 
 ```bash
+python -m pip install sdk/wheels/pandora_runtime-*.whl
 python -m pip install ./sdk
 ```
 

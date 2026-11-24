@@ -6,6 +6,7 @@ PYTHON="$ROOT/.venv/bin/python"
 if [ ! -x "$PYTHON" ]; then
     printf 'Missing project environment: %s\n' "$PYTHON" >&2
     printf 'From %s run: python3 -m venv .venv && source .venv/bin/activate && python -m pip install -r requirements.txt\n' "$ROOT" >&2
+    printf 'For SDK-only installation, see %s/sdk/README.md\n' "$ROOT" >&2
     exit 1
 fi
 cd "$ROOT"

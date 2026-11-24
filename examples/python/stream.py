@@ -3,7 +3,7 @@ from pathlib import Path
 import argparse
 import soundfile as sf
 from pandora_qwen3_tts_12hz_0_6b_customvoice import TTSModel
-from _lifecycle import managed_owner, ExampleInterrupted, cpu_placement, runtime_kwargs
+from _lifecycle import managed_owner, ExampleInterrupted
 TEXTS = {
     "zh": "你好，欢迎使用语音合成。今天，我们用清晰自然的声音，把文字变成可以听见的表达。",
     "en": "Hello, welcome to text-to-speech. Today, we use a clear and natural voice to turn written words into speech you can hear.",
@@ -15,14 +15,11 @@ def arguments():
     p.add_argument("--speaker")
     p.add_argument("--text")
     p.add_argument("--out",default="speech.wav")
-    p.add_argument("--cpu-affinity", type=cpu_placement, help="override SDK CPU placement")
     return p
 def main():
     p=arguments();p.add_argument("--stop-after-chunks",type=int);a=p.parse_args()
     if a.stop_after_chunks is not None and a.stop_after_chunks<1: p.error("--stop-after-chunks must be positive")
-    with runtime_kwargs(a.cpu_affinity) as kwargs, managed_owner(
-        TTSModel.from_pretrained, a.models, **kwargs
-    ) as (model, stop):
+    with managed_owner(TTSModel.from_pretrained, a.models) as (model, stop):
         with model.synthesize_stream(a.text or TEXTS[a.language],speaker=a.speaker or ("vivian" if a.language=="zh" else "ryan"),language=a.language) as stream:
             with sf.SoundFile(a.out,"w",samplerate=stream.sample_rate,channels=1,subtype="PCM_16") as output:
                 for count,chunk in enumerate(stream,1):

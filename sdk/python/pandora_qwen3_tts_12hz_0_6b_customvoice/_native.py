@@ -4,6 +4,7 @@ Installed packages resolve their bundled native library. Explicit library choice
 are strict; source-only diagnostic builds may use sdk/lib or sdk/build.
 """
 
+from contextlib import nullcontext
 import ctypes as C
 import os
 from pathlib import Path
@@ -95,6 +96,8 @@ def lib(library=None):
             selected = str(next((p for p in candidates if p.is_file()), candidates[0]))
         else:
             raise FileNotFoundError("Installed SDK is missing its bundled libqwen3_tts.so")
+    from pandora_runtime import load_library as load_runtime_library
+    load_runtime_library()
     L = C.CDLL(selected)
     P = C.c_void_p
     signatures = {
@@ -123,6 +126,13 @@ def lib(library=None):
     return L
 
 
+def library():
+    global _LIB
+    if _LIB is None:
+        _LIB = lib()
+    return _LIB
+
+
 def resolve_model_dir(model_dir=None):
     """Require the current models.json/AIDEM package; no legacy model fallback."""
     def configured(path):
@@ -145,14 +155,14 @@ def resolve_model_dir(model_dir=None):
 
 
 class _Native:
-    def __init__(self, model_dir=None, *, library=None, runtime=None):
+    def __init__(self, model_dir=None, *, runtime=None):
         model_dir = resolve_model_dir(model_dir)
-        L = self._lib = lib(library)
+        L = self._lib = library()
         self._pid = os.getpid()
         self._slot = C.c_void_p()
         self._runtime = runtime
-        handle = runtime._bind(L)
-        rc = L.q3t_create_with_runtime(os.fsencode(model_dir), None, handle, C.byref(self._slot))
+        with runtime.borrow_handle() if runtime is not None else nullcontext() as handle:
+            rc = L.q3t_create_with_runtime(os.fsencode(model_dir), None, handle, C.byref(self._slot))
         if rc < 0:
             raise Q3TError(rc, L.q3t_create_error().decode())
         i = _Info()

@@ -121,6 +121,5 @@ stderr to a private 0600 file; keep it outside delivery directories. The HTTP st
 
 ## CPU placement
 
-The Web and business CLI default to the SDK CPU default. Pass `--cpu-affinity inherit` or an explicit comma-separated CPU collection to the launcher to override it through the same public Runtime. See [Runtime](../sdk/RUNTIME_API.md). Use the matching ABI4 native library and [platform requirements](../docs/MODEL_SETUP.md#environment-details).
 
 Long-text synthesis derives each segment seed as `(seed + zero_based_segment_index) % (2**32)`. The caller seed must still be an integer in `0..2**32-1`; invalid values are rejected before segmentation.

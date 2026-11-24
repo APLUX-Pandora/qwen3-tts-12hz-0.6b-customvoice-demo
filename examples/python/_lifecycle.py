@@ -43,30 +43,3 @@ def managed_owner(factory, *args, **kwargs):
         finally:
             for sig, handler in previous.items():
                 signal.signal(sig, handler)
-
-
-@contextmanager
-def runtime_kwargs(cpu):
-    """Own an explicit CLI override until the model has closed."""
-    if cpu is None:
-        yield {}
-        return
-
-    from pandora_qwen3_tts_12hz_0_6b_customvoice import Runtime
-
-    with managed_owner(Runtime, cpu=cpu) as (runtime, _):
-        yield {"runtime": runtime}
-
-
-def cpu_placement(value):
-    """Parse the application's CLI option using the SDK's public validation."""
-    from pandora_qwen3_tts_12hz_0_6b_customvoice import CpuOptions
-    try:
-        if value in ("default", "inherit"):
-            return CpuOptions(affinity=value)
-        if not value or any(not item.isascii() or not item.isdecimal() for item in value.split(",")):
-            raise ValueError("use default, inherit, or comma-separated CPU IDs")
-        return CpuOptions(affinity=[int(item) for item in value.split(",")])
-    except (TypeError, ValueError) as exc:
-        import argparse
-        raise argparse.ArgumentTypeError(str(exc)) from exc

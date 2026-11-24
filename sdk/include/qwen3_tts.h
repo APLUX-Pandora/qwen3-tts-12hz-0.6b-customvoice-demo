@@ -84,7 +84,7 @@
 extern "C" {
 #endif
 
-#define Q3T_VERSION "1.0.0"
+#define Q3T_VERSION "1.1.0"
 
 #if defined(__GNUC__)
 #define Q3T_API __attribute__((visibility("default")))
@@ -101,7 +101,7 @@ extern "C" {
 #define Q3T_ERR_TOO_LONG -5  /* the text's prefill rows do not fit the talker context: split the text */
 #define Q3T_ERR_UNSUPPORTED -7 /* recognized option not supported by this provider */
 #define Q3T_ERR_AUTHORIZATION -9 /* LMS denied, failed or unavailable; no fallback */
-#define Q3T_ERR_BUSY -8        /* close models before their Runtime */
+#define Q3T_ERR_BUSY -8        /* resource is busy */
 #define Q3T_ERR_INTERNAL -6  /* unexpected failure inside the library (e.g. out of memory) */
 
 #define Q3T_NUM_CODEBOOKS 16 /* codes per frame: code0 from the talker, codes 1..15 from the code predictor */
@@ -203,21 +203,12 @@ Q3T_API int q3t_cancel(q3t_engine *e);
 
 Q3T_API int q3t_get_stats(q3t_engine *e, q3t_stats *st);
 
-/* Runtime configuration is ABI4/exact-size. Old q3t_options layout is unchanged.
- * Empty owner slots retain a created handle before language-level signal delivery.
- * Caller synchronizes create/status/close. Runtime destruction rejects attached models.
- * Handles are provider/process-local; initialize after spawn/exec, never reuse after fork. */
+/* Pass NULL for a model-owned default Runtime. Loaded models retain the shared
+ * Runtime settings even if the caller destroys its handle. Serialize create and
+ * close. Handles are local to this SDK and process. */
 Q3T_API int q3t_create_with_runtime(const char *, const q3t_options *, pandora_runtime_t *, q3t_engine **);
 Q3T_API int q3t_destroy_owned(q3t_engine **);
 Q3T_API int q3t_create_status(void);
-typedef struct {
-    uint32_t struct_size, attached_models;
-    uint64_t mapped_bytes, locked_bytes, lock_failures;
-    /* Per-Runtime cumulative attempts, not license identifiers or success assertions. */
-    uint64_t authorization_checks, key_provider_calls, decrypt_calls;
-    uint64_t backend_initialization_attempts, quarantined_backend_failures;
-} q3t_protection_status;
-Q3T_API int q3t_get_protection_status(pandora_runtime_t *, q3t_protection_status *);
 
 #ifdef __cplusplus
 }

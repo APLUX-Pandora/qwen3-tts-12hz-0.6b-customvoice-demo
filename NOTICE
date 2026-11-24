@@ -43,7 +43,7 @@ Bundled QNN runtime
 -------------------
 The SDK includes unchanged Qualcomm QNN user-space runtime components beside the model library.
 Their original terms and notices are in sdk/lib/qnn248/LICENSE.pdf, NOTICE.txt and QNN_NOTICE.txt.
-The statically embedded Pandora QNN integration code is Apache-2.0; see sdk/lib/LICENSES/Apache-2.0.txt.
+The Pandora QNN integration, shared Runtime, C header and Python bindings are Copyright 2026 APLUX and licensed under Apache-2.0; see sdk/lib/LICENSES/Apache-2.0.txt.
 Aidlux LMS and compatible BSP/FastRPC, drivers, firmware and system libraries remain external prerequisites.
 
 Demo content

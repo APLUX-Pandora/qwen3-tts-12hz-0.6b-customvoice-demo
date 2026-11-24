@@ -1,107 +1,116 @@
-/* Pandora runtime configuration ABI v4 (exact-size validation). This provider is delivered by libqwen3_tts.
- * Handles are process-local and provider-local. Never pass a handle to another SDK provider.
- * Models retain the runtime; close attached models before destroying the caller handle.
- * No model handle may be inherited through fork. Defaults: QNN / burst / normal / device 0; protected model buffers are managed by the SDK. */
+/* SPDX-License-Identifier: Apache-2.0
+ * Pandora Runtime C ABI 5: hardware settings shared by every Pandora model SDK on Qualcomm
+ * platforms (CPU affinity, QNN performance mode, QNN priority, NPU device).
+ * Shared Pandora Runtime header; ship it unchanged.
+ *
+ * Most applications never create a Runtime: a model loaded with a NULL runtime uses the
+ * defaults below. Settings are fixed for the lifetime of a Runtime.
+ *
+ *   Default: CPU affinity "default" (by SoC), performance mode burst, priority normal, device 0.
+ *   Default CPUs: soc_id 702 (QCS8625) -> CPU 2,3,7 (0x8c); soc_id 675 (QCS8275) -> CPU 1,2,3
+ *   (0x0e); soc_id 603 (QCS8550) with 6 present CPUs -> CPU 3,4,5 (0x38), with 8 -> 0xe0; any
+ *   other SoC, or no soc_id -> CPU 5,6,7 (0xe0). The CPUs must exist, be online and
+ *   be allowed for the process; otherwise creation fails. The mask is never narrowed.
+ *   RPC is set by the SDK from the performance mode: control latency 100 us; polling 9999 us for
+ *   burst, sustained_high_performance and high_performance, 0 for the other modes.
+ *
+ * Handles belong to one Runtime provider and process. Migrated models share that provider.
+ * Never pass a handle to a legacy provider or use it after fork. A model keeps its own reference, so a Runtime
+ * may be destroyed before the models that use it; shared state is released with the last model.
+ */
 #ifndef PANDORA_RUNTIME_H
 #define PANDORA_RUNTIME_H
 #include <stdint.h>
+#include <stddef.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
-#if defined(_WIN32)
-#define PANDORA_API __declspec(dllexport)
-#else
-#define PANDORA_API __attribute__((visibility("default")))
+#ifndef PANDORA_RUNTIME_API
+#define PANDORA_RUNTIME_API __attribute__((visibility("default")))
 #endif
-typedef struct pandora_runtime pandora_runtime_t;
-enum { PANDORA_OK = 0, PANDORA_ERROR_ARGUMENT = -1, PANDORA_ERROR_BACKEND = -3,
-       PANDORA_ERROR_STATE = -4, PANDORA_ERROR_INTERNAL = -6, PANDORA_ERROR_UNSUPPORTED = -7, PANDORA_ERROR_BUSY = -8 };
-enum { PANDORA_BACKEND_QNN = 1 };
-/* Existing candidate values remain stable. These are profile IDs, not voltage values. */
-enum { PANDORA_QNN_BURST = 0, PANDORA_QNN_BALANCED = 1, PANDORA_QNN_SYSTEM_SETTINGS = 2,
-       PANDORA_QNN_SUSTAINED_HIGH_PERFORMANCE = 3, PANDORA_QNN_HIGH_PERFORMANCE = 4,
-       PANDORA_QNN_LOW_BALANCED = 5, PANDORA_QNN_HIGH_POWER_SAVER = 6,
-       PANDORA_QNN_POWER_SAVER = 7, PANDORA_QNN_LOW_POWER_SAVER = 8,
-       PANDORA_QNN_EXTREME_POWER_SAVER = 9 };
-enum { PANDORA_PRIORITY_LOW = 0, PANDORA_PRIORITY_NORMAL = 100,
-       PANDORA_PRIORITY_NORMAL_HIGH = 150, PANDORA_PRIORITY_HIGH = 200 };
-typedef struct { uint32_t performance_mode; int32_t priority; uint32_t device_id; uint32_t reserved; } pandora_qnn_options_t;
-#define PANDORA_RUNTIME_ABI_VERSION 4
-#define PANDORA_CPU_ABI_VERSION 1
-enum { PANDORA_CPU_AFFINITY_INHERIT=0, PANDORA_CPU_AFFINITY_DEFAULT=1, PANDORA_CPU_AFFINITY_EXPLICIT=2 };
-typedef struct {
-    uint32_t struct_size, abi_version, policy, cpu_count;
-    const uint32_t *cpu_ids;
-    uint32_t reserved[2];
-} pandora_cpu_options_t;
-#define PANDORA_CPU_OPTIONS_INIT {sizeof(pandora_cpu_options_t), PANDORA_CPU_ABI_VERSION, PANDORA_CPU_AFFINITY_DEFAULT, 0, 0, {0,0}}
 
-enum { PANDORA_QNN_OVERRIDE_RPC_CONTROL_LATENCY = 1, PANDORA_QNN_OVERRIDE_RPC_POLLING_TIME = 2 };
+#define PANDORA_RUNTIME_ABI_VERSION 5
+#define PANDORA_RUNTIME_MAX_CPUS 64
+
+enum {
+    PANDORA_RUNTIME_OK = 0,
+    PANDORA_RUNTIME_ERROR_ARGUMENT = -1,    /* invalid type, value, size or ABI version */
+    PANDORA_RUNTIME_ERROR_UNSUPPORTED = -2, /* valid value this SDK or target cannot apply */
+    PANDORA_RUNTIME_ERROR_STATE = -3,       /* wrong process (fork), closed or busy */
+    PANDORA_RUNTIME_ERROR_BACKEND = -4,     /* QNN/Genie rejected a setting */
+    PANDORA_RUNTIME_ERROR_INTERNAL = -5
+};
+
+enum { PANDORA_CPU_AFFINITY_DEFAULT = 0, PANDORA_CPU_AFFINITY_LIST = 1 };
+
+/* Highest performance to lowest power. */
+enum {
+    PANDORA_QNN_BURST = 0,
+    PANDORA_QNN_SUSTAINED_HIGH_PERFORMANCE = 1,
+    PANDORA_QNN_HIGH_PERFORMANCE = 2,
+    PANDORA_QNN_BALANCED = 3,
+    PANDORA_QNN_LOW_BALANCED = 4,
+    PANDORA_QNN_HIGH_POWER_SAVER = 5,
+    PANDORA_QNN_POWER_SAVER = 6,
+    PANDORA_QNN_LOW_POWER_SAVER = 7,
+    PANDORA_QNN_EXTREME_POWER_SAVER = 8,
+    PANDORA_QNN_SYSTEM_SETTINGS = 9
+};
+
+/* Same values as Qnn_Priority_t and GenieDialog_Priority_t. */
+enum {
+    PANDORA_PRIORITY_LOW = 0,
+    PANDORA_PRIORITY_NORMAL = 100,
+    PANDORA_PRIORITY_NORMAL_HIGH = 150,
+    PANDORA_PRIORITY_HIGH = 200
+};
+
+typedef struct pandora_runtime pandora_runtime_t;
+
 typedef struct {
-    uint32_t struct_size, abi_version, backend, reserved_protection;
-    pandora_qnn_options_t qnn;
-    /* ABI v2 append-only overrides. Flags distinguish explicit zero from preset defaults. */
-    uint32_t qnn_override_flags, rpc_control_latency_us, rpc_polling_time_us, reserved;
-    pandora_cpu_options_t cpu;
+    uint32_t struct_size;      /* sizeof(pandora_runtime_config_t) */
+    uint32_t abi_version;      /* PANDORA_RUNTIME_ABI_VERSION */
+    uint32_t cpu_affinity;     /* PANDORA_CPU_AFFINITY_* */
+    uint32_t cpu_count;        /* LIST: 1..PANDORA_RUNTIME_MAX_CPUS; DEFAULT: 0 */
+    const uint32_t *cpu_ids;   /* LIST: CPU IDs 0..63, duplicates rejected; DEFAULT: NULL */
+    uint32_t performance_mode; /* PANDORA_QNN_* */
+    uint32_t priority;         /* PANDORA_PRIORITY_* */
+    uint32_t device_id;        /* NPU device; only QCS9075 has device 1 */
+    uint32_t reserved;         /* 0 */
 } pandora_runtime_config_t;
-#define PANDORA_RUNTIME_CONFIG_INIT {sizeof(pandora_runtime_config_t), PANDORA_RUNTIME_ABI_VERSION, PANDORA_BACKEND_QNN, 0, {PANDORA_QNN_BURST, PANDORA_PRIORITY_NORMAL, 0, 0}, 0, 0, 0, 0, PANDORA_CPU_OPTIONS_INIT}
+
+#define PANDORA_RUNTIME_CONFIG_INIT \
+    { sizeof(pandora_runtime_config_t), PANDORA_RUNTIME_ABI_VERSION, PANDORA_CPU_AFFINITY_DEFAULT, \
+      0, NULL, PANDORA_QNN_BURST, PANDORA_PRIORITY_NORMAL, 0, 0 }
+
+/* Read-only snapshot of the settings submitted to the backend. */
 typedef struct {
-    uint32_t struct_size, abi_version, performance_mode;
-    int32_t priority;
-    uint32_t reserved_protection, active_contexts, power_client_created, active_executions;
-    uint64_t accepted_active_votes, accepted_release_votes;
-    uint32_t rpc_control_latency_us, rpc_polling_time_us, process_rpc_polling_time_us, deferred_vote_failures;
-    uint32_t device_id, execution_device_id, power_device_id, core_id, device_verified;
+    uint32_t struct_size;            /* caller sets sizeof(pandora_runtime_status_t) */
+    uint32_t abi_version;            /* caller sets PANDORA_RUNTIME_ABI_VERSION */
+    int32_t soc_id;                  /* /sys/devices/soc0/soc_id, or -1 when unreadable */
+    uint32_t cpu_affinity;           /* requested PANDORA_CPU_AFFINITY_* */
+    uint32_t cpu_count;              /* CPUs in cpu_mask */
+    uint32_t cpu_ids[PANDORA_RUNTIME_MAX_CPUS]; /* ascending; first cpu_count are valid */
+    uint64_t cpu_mask;               /* submitted mask, e.g. 0xe0 */
+    uint32_t performance_mode;
+    uint32_t priority;
+    uint32_t device_id;
+    uint32_t rpc_control_latency_us;
+    uint32_t rpc_polling_time_us;
+    uint32_t reserved;
 } pandora_runtime_status_t;
-/* Qwen provider accepts exactly ABI4/current struct sizes; ABI2/ABI3 are rejected. Nine performance
- * modes apply to all directly executed QNN graphs. system_settings,
- * non-normal priority and explicit RPC polling are unsupported and return -7.
- * RPC control latency accepts uint32_t, None/preset=100 us; explicit zero is valid.
- * power/vote counters describe the direct-QNN client only. Burst requests RPC
- * polling 9999 us internally. process_rpc_polling_time_us is the last successfully
- * submitted aggregate of this provider; UINT32_MAX means unknown. It is not a
- * query of other SDKs or measured hardware state. Status reports submitted requirements,
- * never measured clocks or a guarantee of scheduling priority.
- * Caller serializes configuration/status/close against model create/destroy.
- * Native handles must never cross providers or fork. */
-PANDORA_API const char *pandora_runtime_last_error(void);
-PANDORA_API int pandora_runtime_create(const pandora_runtime_config_t *, pandora_runtime_t **out);
-PANDORA_API int pandora_runtime_get_status(pandora_runtime_t *, pandora_runtime_status_t *);
-PANDORA_API int pandora_runtime_destroy(pandora_runtime_t **);
-enum { PANDORA_CPU_IDS_ALLOWED=0, PANDORA_CPU_IDS_RESOLVED=1, PANDORA_CPU_IDS_DEFAULT=2 };
-enum { PANDORA_CPU_COVERAGE_MODEL_EXECUTION=2 };
-enum { PANDORA_CPU_THREAD_MODEL=3, PANDORA_CPU_THREAD_RUNTIME=4, PANDORA_CPU_THREAD_POWER=5, PANDORA_CPU_THREAD_PROCESSOR=6 };
-enum { PANDORA_CPU_PROFILE_NONE=0, PANDORA_CPU_PROFILE_RESERVED=1,
-       PANDORA_CPU_PROFILE_603_8=2, PANDORA_CPU_PROFILE_603_6=3,
-       PANDORA_CPU_PROFILE_702=4, PANDORA_CPU_PROFILE_FALLBACK=5 };
-/* Separate ABI1 query; existing status sizes and reserved fields remain unchanged.
- * Detection fields are zero until default placement has been resolved.
- * default_mask is the full selected target; observed masks use get_cpu_thread. */
-typedef struct {
-    uint32_t struct_size, abi_version, linux_soc_id, present_cpu_count;
-    uint64_t default_mask;
-    char config_version[32];
-} pandora_cpu_config_status_t;
-PANDORA_API int pandora_runtime_get_cpu_config(pandora_runtime_t *, pandora_cpu_config_status_t *);
-typedef struct {
-    uint32_t struct_size, abi_version, policy, coverage;
-    uint32_t supported_policies, backend_override_supported, active_workers, observed_threads;
-    uint32_t verified_threads, profile_id, reserved[2];
-    uint64_t affinity_failures;
-} pandora_cpu_status_t;
-typedef struct {
-    uint32_t struct_size, abi_version;
-    uint64_t tid;
-    uint32_t scope, cpu_count, verified, reserved;
-} pandora_cpu_thread_status_t;
-/* CPU query structs use PANDORA_CPU_ABI_VERSION. Array queries accept NULL
- * with *count=0 to report required size. Insufficient capacity updates *count,
- * writes no array elements and returns ARGUMENT. Query each thread by index
- * only while model lifecycles are quiescent; records disappear on model close.
- * Observed masks are freshly read from the kernel, not config echoes. */
-PANDORA_API int pandora_runtime_get_cpu_status(pandora_runtime_t *, pandora_cpu_status_t *);
-PANDORA_API int pandora_runtime_get_cpu_ids(pandora_runtime_t *, uint32_t kind, uint32_t *ids, uint32_t *count);
-PANDORA_API int pandora_runtime_get_cpu_thread(pandora_runtime_t *, uint32_t index, pandora_cpu_thread_status_t *, uint32_t *ids, uint32_t *count);
+
+/* NULL config means PANDORA_RUNTIME_CONFIG_INIT. *out must be NULL on entry. */
+PANDORA_RUNTIME_API int pandora_runtime_create(const pandora_runtime_config_t *config,
+                                               pandora_runtime_t **out);
+PANDORA_RUNTIME_API int pandora_runtime_get_status(const pandora_runtime_t *runtime,
+                                                   pandora_runtime_status_t *out);
+/* Releases the caller's reference and sets *runtime to NULL. NULL or *runtime == NULL is OK,
+ * so calling it twice is safe. Models created with this Runtime stay valid. */
+PANDORA_RUNTIME_API int pandora_runtime_destroy(pandora_runtime_t **runtime);
+/* Message of the last failed call on this thread; empty after a successful call. */
+PANDORA_RUNTIME_API const char *pandora_runtime_last_error(void);
+
 #ifdef __cplusplus
 }
 #endif

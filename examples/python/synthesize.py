@@ -3,7 +3,7 @@ from pathlib import Path
 import argparse
 import soundfile as sf
 from pandora_qwen3_tts_12hz_0_6b_customvoice import TTSModel
-from _lifecycle import managed_owner, ExampleInterrupted, cpu_placement, runtime_kwargs
+from _lifecycle import managed_owner, ExampleInterrupted
 TEXTS = {
     "zh": "你好，欢迎使用语音合成。今天，我们用清晰自然的声音，把文字变成可以听见的表达。",
     "en": "Hello, welcome to text-to-speech. Today, we use a clear and natural voice to turn written words into speech you can hear.",
@@ -15,13 +15,10 @@ def arguments():
     p.add_argument("--speaker")
     p.add_argument("--text")
     p.add_argument("--out",default="speech.wav")
-    p.add_argument("--cpu-affinity", type=cpu_placement, help="override SDK CPU placement")
     return p
 def main():
     a=arguments().parse_args()
-    with runtime_kwargs(a.cpu_affinity) as kwargs, managed_owner(
-        TTSModel.from_pretrained, a.models, **kwargs
-    ) as (model, stop):
+    with managed_owner(TTSModel.from_pretrained, a.models) as (model, stop):
         result=model.synthesize(a.text or TEXTS[a.language],speaker=a.speaker or ("vivian" if a.language=="zh" else "ryan"),language=a.language)
         stop.check()
         sf.write(a.out,result.audio,result.sample_rate)

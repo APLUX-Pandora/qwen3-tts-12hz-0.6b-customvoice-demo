@@ -48,7 +48,7 @@ source .venv/bin/activate
 python -m pip install -r requirements.txt
 ```
 
-This installs the SDK, the Web Demo and the Hugging Face CLI. To use only the SDK in your own application, run `python -m pip install ./sdk` in that application's environment.
+This installs the SDK, the Web Demo and the Hugging Face CLI. To use only the SDK in your own application, see the [SDK installation](sdk/README.md#install).
 
 ## 2. Get the model
 
@@ -61,7 +61,7 @@ hf download APLUX-Pandora/Qwen3-TTS-12Hz-0.6B-CustomVoice --local-dir models --i
 
 For a private repository, run `hf auth login` first. Available targets and the folder layout are in [Model setup](docs/MODEL_SETUP.md).
 
-To switch devices, move the old `models/targets/` folder out or start in a fresh Demo checkout. Run both download commands again with the new target. Once both commands finish, run the verification command below before using the model. Verify again after every update. If verification fails, repeat both downloads and verify again.
+For another device, replace `qcs8550_qnn248` in both the target download and verification commands with the exact folder name from the [Targets table](docs/MODEL_SETUP.md#targets). If switching devices, move the old `models/targets/` folder out or start in a fresh Demo checkout, then run both download commands again. Once both downloads finish, run the verification command below before using the model. Verify again after every update. If verification fails, repeat both downloads and verify again.
 
 ```bash
 python models/verify_model_package.py models --target "qcs8550_qnn248"
@@ -102,7 +102,6 @@ More in the [Python API](sdk/PYTHON_API.md) and [examples](examples/README.md).
 - [C ABI](docs/C_ABI.md) covers native integration.
 - [Examples](examples/README.md) provides runnable Python and C examples.
 - [Diagnostics API](docs/DIAGNOSTICS_API.md) describes read-only model information and metrics.
-- [Runtime diagnostics](docs/RUNTIME_DIAGNOSTICS.md) describes CPU and QNN status.
 - [Protected loading](docs/PROTECTED_LOADING.md) explains model loading and memory ownership.
 - [Weight sharing](docs/WEIGHT_SHARING.md) explains the bundled model's shared graph resources.
 - [Licensing](LICENSING.md) documents component-specific terms.

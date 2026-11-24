@@ -4,12 +4,13 @@
 
 ## Build and link
 
-Prepare the [device runtime](../README.md#1-install).
+Prepare the [device runtime](../README.md#prepare-the-device). In the same Python environment you will use below, install the bundled Runtime wheel and SDK as shown in [SDK installation](../sdk/README.md#install).
 
 From the Demo root, compile against the shipped header and library; the library carries its QNN runtime:
 
 ```bash
-cc -std=c99 -I sdk/include your_app.c -L sdk/lib -lqwen3_tts -Wl,-rpath,'$ORIGIN/sdk/lib' -o your_app
+runtime_dir=$(python -c "import pathlib,pandora_runtime; print(pathlib.Path(pandora_runtime.__file__).parent)")
+cc -std=c99 -I sdk/include your_app.c -L sdk/lib -L"$runtime_dir" -Wl,--no-as-needed -l:libpandora_runtime.so.5 -Wl,--as-needed -Wl,-rpath,"$runtime_dir" -lqwen3_tts -Wl,-rpath,'$ORIGIN/sdk/lib' -o your_app
 ```
 
 Keep `sdk/lib/qnn248/` adjacent to the matching prebuilt library. See [environment details](MODEL_SETUP.md#environment-details) for system requirements.
@@ -24,8 +25,7 @@ q3t_create → q3t_get_info → q3t_default_request → q3t_start
 A new start replaces a running utterance. Input rejected for an invalid argument or excessive
 length leaves the end reason at `Q3T_END_NONE`. Runtime and execution failures report
 `Q3T_END_ERROR`. Both paths leave zero audio frames and chunks and clear the previous
-chunk's codes. If request start and Runtime execution release both fail, the release error takes
-precedence and `q3t_last_error` reports both causes.
+chunk's codes.
 Fetching audio returns `Q3T_ERR_STATE` until start succeeds on that engine.
 After cancellation, next_audio returns any remaining audio, then 0.
 - If a request is rejected for invalid input or length, correct it and call `q3t_start` again
@@ -34,15 +34,7 @@ After cancellation, next_audio returns any remaining audio, then 0.
 - A chunk generation or completion failure ends the utterance with `Q3T_END_ERROR`. The failed
   chunk leaves the caller's buffer, last returned codes, and returned-frame and chunk counts unchanged.
   Retry the utterance with a new `q3t_start` only while the Runtime is usable.
-- If releasing the device power vote fails at the end of execution in `q3t_start` or
-  `q3t_next_audio`, the Runtime records the failure and rejects new execution for every model
-  that shares it. With an explicit Runtime, `pandora_runtime_get_status` exposes these failures
-  through `deferred_vote_failures`. Copy the original error before further calls and wait for in-flight
-  work to return. Close every attached model with `q3t_destroy_owned` and then destroy any
-  caller-owned Runtime with `pandora_runtime_destroy`. Check every teardown result. Report any
-  cleanup failure. After successful cleanup, create a fresh Runtime with `pandora_runtime_create`
-  and load the models again before submitting more requests. If each model owns its Runtime,
-  creating a new model after successful cleanup also creates a new Runtime.
+- If backend cleanup fails, keep the original diagnostic and report the failed teardown.
 
 ## Functions
 
@@ -85,58 +77,30 @@ WAV output and playback remain client/business policies. The C99 example uses fi
 | `int q3t_cancel(q3t_engine* e)` |0 or ARG for NULL; requests stop after current frame. Only function permitted concurrently with engine work; does not wait/join/destroy. |
 | `int q3t_get_stats(q3t_engine* e, q3t_stats* st)` | Writes per-utterance metadata/timings to non-NULL caller storage;0 or negative error. |
 
-### Runtime C ABI4
+### Runtime
 
-Include both installed headers. Initialize configuration with
-`PANDORA_RUNTIME_CONFIG_INIT`; exact current size and ABI4 are required (no prefix
-compatibility). Zero reserved fields. The Python Runtime table documents the same
-nine accepted modes, normal-only priority, optional control override and unsupported
-system_settings/explicit polling overrides. C enum IDs are in `pandora_runtime.h`.
+Use `PANDORA_RUNTIME_CONFIG_INIT` for the default settings. The public header defines
+the supported modes, priorities, CPU placement and status fields. See [Runtime](../sdk/RUNTIME_API.md).
 
 ```c
-pandora_runtime_config_t cfg = PANDORA_RUNTIME_CONFIG_INIT;
-cfg.qnn.performance_mode = PANDORA_QNN_BURST;
-cfg.qnn.device_id = 0; /* immutable device selection; no fallback */
-cfg.qnn_override_flags = PANDORA_QNN_OVERRIDE_RPC_CONTROL_LATENCY;
-cfg.rpc_control_latency_us = 0; /* explicit zero, not an absent override */
+pandora_runtime_config_t config = PANDORA_RUNTIME_CONFIG_INIT;
+config.performance_mode = PANDORA_QNN_BALANCED;
 pandora_runtime_t *runtime = NULL;
 q3t_engine *model = NULL;
-int rc = pandora_runtime_create(&cfg, &runtime);
-if (rc == 0) rc = q3t_create_with_runtime("/path/to/models", NULL, runtime, &model);
-/* Use existing request/audio functions if rc == 0. Always clean up owned slots. */
-q3t_destroy_owned(&model);
-pandora_runtime_destroy(&runtime);
+int rc = pandora_runtime_create(&config, &runtime);
+if (rc == 0) rc = q3t_create_with_runtime("models", NULL, runtime, &model);
+/* When rc is zero, submit requests and read audio. Check both cleanup results. */
+int model_close_status = q3t_destroy_owned(&model);
+int runtime_close_status = pandora_runtime_destroy(&runtime);
 ```
 
-- `pandora_runtime_create(config, &empty_slot)` validates and owns an immutable config.
-- `pandora_runtime_get_status(runtime, &status)` requires initialized struct_size and
-  abi_version4; returns submitted requirements and direct-QNN resource/vote counters.
-  Polling reports the active preset (burst=9999 us, retained other modes=0). The process field reports this provider's submitted active-vote aggregate, not a driver-wide query; UINT32_MAX means unknown. See Python status scope and power limitations.
-- `pandora_runtime_last_error()` returns borrowed thread-local error text until the next
-  Runtime operation. Copy if retained. Runtime calls return0 or negative codes.
-- `pandora_runtime_destroy(&slot)` requires all attached models closed; BUSY(-8)
-  leaves the slot intact. Successful close nulls it; a null value is idempotent.
-- `q3t_create_with_runtime(root, options, runtime, &empty_model_slot)` supports a NULL
-  runtime for private defaults. The slot owns the handle before returning to the caller.
-  Failure leaves it empty; detail is q3t_create_error, code is q3t_create_status().
-- `q3t_destroy_owned(&model_slot)` nulls ownership before teardown; repeated close is
-  safe for an empty slot. A nonzero close reports quarantine; the slot is retired and must not be reused. Read q3t_create_error for its thread-local detail. Use it for language bindings; legacy pointer-return create/void destroy remain.
-- `q3t_get_protection_status(runtime, &status)` requires initialized struct_size and
-  returns attached_models plus SDK-wide current resource bytes and cumulative lock failures. locked_bytes=UINT64_MAX is unobservable; do not present it as a byte count or per-model cleanup proof.
-
-### CPU configuration and queries
-
-CPU options have their own ABI1 and exact struct size. Runtime config requires ABI4 and its full current size; old Runtime ABI2/ABI3 configs are rejected without reading their missing CPU tail. The default initializer selects `PANDORA_CPU_AFFINITY_DEFAULT`. Set `cfg.cpu.policy=PANDORA_CPU_AFFINITY_INHERIT` to preserve host placement, or use EXPLICIT with a nonempty `uint32_t` CPU array and count. The Runtime copies and normalizes IDs during creation; the input array may then be released. Valid IDs are 0..1023, online and allowed. Invalid size/version/reserved/pointer/count/policy combinations fail with ARG. A complete default target must be available; it is never silently truncated.
-
-Initialize CPU query outputs with `sizeof(output)` and `PANDORA_CPU_ABI_VERSION`:
-- `pandora_runtime_get_cpu_config` returns Linux ID, present hardware count, packaged config version and default mask.
-- `pandora_runtime_get_cpu_status` returns policy/profile, SDK worker observations and affinity failures. Static coverage fields describe the adapter scope; they are not independent inference qualification.
-- `pandora_runtime_get_cpu_ids` selects ALLOWED, RESOLVED or DEFAULT lists.
-- `pandora_runtime_get_cpu_thread` reads a live registered SDK worker's TID, role and kernel mask by index. It does not enumerate arbitrary process threads or identify backend ownership through TID differences.
-
-Array queries accept `ids=NULL` with `*count=0` to query required length. Insufficient capacity updates count without writing array elements and returns ARG. Synchronize lifecycle and indexed queries; workers disappear when closed. See [Runtime diagnostics](RUNTIME_DIAGNOSTICS.md) for observation scope and unsupported settings.
-
-Runtime ABI4 requires reserved_protection=0. The selected context and power client must use the same observed device/core. Malformed device configuration fails validation. A well-formed uint32 device ID absent from the queried QNN topology fails model load with Q3T_ERR_NPU (-3), an empty model owner slot and a device-unavailable diagnostic; it does not select device 0 instead. Status exposes requested device_id separately from actual execution_device_id, power_device_id, core_id and device_verified; unknown IDs use UINT32_MAX. No public core selection or Genie/HTP config path is added.
+- Initialize status with its struct size and `PANDORA_RUNTIME_ABI_VERSION` before calling
+  `pandora_runtime_get_status`.
+- Pass a null Runtime to the model loader to use the SDK defaults. Models hold a reference to
+  their Runtime settings and remain usable when a caller closes its Runtime handle early.
+- Use a separate model slot initialized to null. On load failure, read `q3t_create_error`
+  and `q3t_create_status`. On cleanup failure, the slot is retired and `q3t_create_error`
+  reports the reason.
 
 ## Error codes
 

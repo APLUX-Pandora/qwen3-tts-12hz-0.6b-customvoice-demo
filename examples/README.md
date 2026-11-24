@@ -44,7 +44,7 @@ Output:
 speech.wav: finish_reason=stop
 ```
 
-Both examples use the SDK's default Runtime and write to `speech.wav`. Use `--out` to keep separate files, `--models` to select another package, or `--language` and `--speaker` to select the input language and voice. Start either script with `--help` for all options. See the [Runtime guide](../sdk/RUNTIME_API.md) for `--cpu-affinity`.
+Both examples use the SDK's default Runtime and write to `speech.wav`. Use `--out` to keep separate files, `--models` to select another package, or `--language` and `--speaker` to select the input language and voice. Start either script with `--help` for all options. See the [Runtime guide](../sdk/RUNTIME_API.md) for custom hardware settings.
 
 ## C example
 
@@ -55,7 +55,8 @@ Synthesize the built-in Chinese text and save it to `native.wav`.
 Build against the headers and prebuilt library in `sdk/`:
 
 ```bash
-cc -std=c99 -Wall -Wextra -Werror -I sdk/include examples/c/synthesize.c -L sdk/lib -lqwen3_tts -Wl,-rpath,'$ORIGIN/../../sdk/lib' -lm -o examples/c/synthesize
+runtime_dir=$(python -c "import pathlib,pandora_runtime; print(pathlib.Path(pandora_runtime.__file__).parent)")
+cc -std=c99 -Wall -Wextra -Werror -I sdk/include examples/c/synthesize.c -L sdk/lib -L"$runtime_dir" -Wl,--no-as-needed -l:libpandora_runtime.so.5 -Wl,--as-needed -Wl,-rpath,"$runtime_dir" -lqwen3_tts -Wl,-rpath,'$ORIGIN/../../sdk/lib' -lm -o examples/c/synthesize
 examples/c/synthesize models native.wav zh
 ```
 

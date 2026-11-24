@@ -34,7 +34,7 @@ import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from tts import TTS, cpu_placement  # noqa: E402
+from tts import TTS  # noqa: E402
 from runtime_logging import sanitize  # noqa: E402
 
 SPEAKERS = ["vivian", "serena", "uncle_fu", "dylan", "eric", "ryan", "aiden", "ono_anna", "sohee"]
@@ -118,7 +118,6 @@ def main():
     ap.add_argument("--port", type=int, default=8765)
     ap.add_argument("--models", default=os.environ.get("QWEN3_TTS_MODELS"),
                     help="model package directory containing models.json")
-    ap.add_argument("--cpu-affinity", type=cpu_placement, default="default")
     a = ap.parse_args()
     from flask import Flask, Response, request, send_from_directory
     lock = threading.Lock()
@@ -235,7 +234,7 @@ def main():
         nonlocal tts
         tts = value
 
-    serve(web, lambda: TTS(a.models, cpu=a.cpu_affinity), stopping, lock,
+    serve(web, lambda: TTS(a.models), stopping, lock,
           lambda: active_stop, assign_tts, a.host, a.port)
 
 

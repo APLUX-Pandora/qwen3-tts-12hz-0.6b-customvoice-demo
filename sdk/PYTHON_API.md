@@ -24,7 +24,7 @@ Signatures below are the public bound calls (`self`/`cls` omitted). Return types
 
 | Signature / property | Purpose and return | Example |
 | --- | --- | --- |
-| `TTSModel.from_pretrained(model_dir=None, *, library=None, runtime=None) -> TTSModel` | Synchronously load local resources and return an owned model; no download. | Quick start above; [complete example](../examples/python/synthesize.py). |
+| `TTSModel.from_pretrained(model_dir, *, runtime=None) -> TTSModel` | Synchronously load local resources and return an owned model; no download. | Quick start above; [complete example](../examples/python/synthesize.py). |
 | `model.synthesize(text, *, speaker, language, prompt=None, seed=None, max_new_tokens=None) -> SynthesisResult` | Consume a complete text string; return the full waveform after generation and tail processing finish. | Quick start above. |
 | `model.synthesize_stream(text, *, speaker, language, prompt=None, seed=None, max_new_tokens=None) -> AudioStream` | Consume a complete text string; reserve the model immediately and return a closeable iterator. Audio is generated when iterated, not at stream construction. | Streaming example below; [WAV streaming example](../examples/python/stream.py). |
 | `model.speakers -> tuple[str, ...]` | Query the loaded package's available voice IDs. | Voice query below. |
@@ -52,9 +52,8 @@ with TTSModel.from_pretrained("models") as model:
 
 | Parameter | Type | Required / omitted or None | Legal values, units and limits |
 | --- | --- | --- | --- |
-| `model_dir` | `str`, path-like or `None` | An explicit path is required for the installed SDK; omission/`None` raises `TTSLoadError`. | Local package root containing `models.json`, or a parent containing exactly one immediate child package. Empty, missing or ambiguous paths fail; no automatic download or fallback to another root. Relative paths use the caller's working directory; `~` is expanded. |
-| `library` | `str`, path-like or `None` | Default `None`: use nonempty `QWEN3_TTS_LIB` if set, otherwise the installed package's `lib/libqwen3_tts.so`. | Explicit override selects exactly one existing native library; `~` is expanded and relative paths use the working directory. Load/ABI failure does not try another library. Use the matching supplied library and headers. |
-| `runtime` | This SDK's `Runtime` or `None` | Default `None`: create a model-owned default Runtime. | CPU `default`, QNN `burst`, priority `normal`, device `0`; activity RPC control preset 100 μs. A supplied Runtime is caller-owned and must outlive attached models. See the independent [Runtime reference](RUNTIME_API.md) for configuration and supported settings. |
+| `model_dir` | `str`, path-like or `None` | Required. Omitting it raises `TypeError`. Passing `None` or an invalid path raises `TTSLoadError`. | Local package root containing `models.json`, or a parent containing exactly one immediate child package. No automatic download or fallback to another root. Relative paths use the caller's working directory; `~` is expanded. |
+| `runtime` | This SDK's `Runtime` or `None` | Default `None`: create a model-owned default Runtime. | CPU `default`, QNN `burst`, priority `normal`, device `0`; activity RPC control preset 100 μs. The model holds a reference to a supplied Runtime. Closing that Runtime first leaves already loaded models usable. See the independent [Runtime reference](RUNTIME_API.md) for configuration and supported settings. |
 
 ### Requests: shared by synthesize and synthesize_stream
 
@@ -151,8 +150,8 @@ Result/chunk dataclass fields are read-only; the arrays themselves are writable.
 | `TypeError` | Wrong request type, bool-as-int, missing required arguments, or a foreign Runtime type. |
 | `ValueError` | Empty/NUL-containing text or IDs, unknown speaker, invalid integer range, malformed prompt, or text too long for one utterance (split it). Correct the input; the model stays usable after the stream is closed. |
 | `TTSUnsupportedError` | Unsupported text-language code or nonempty instruction prompt. |
-| `TTSLoadError` | Package discovery/integrity, native library/ABI, authorization or backend initialization failed; no loaded model is returned. Load-path failures are wrapped here, with the cause retained. A well-formed device ID absent from QNN topology has `native_code=-3`; no device fallback occurs. |
-| `TTSInferenceError` | Native request/generation failure or invalid audio output. Close the stream and recreate the model after successful cleanup. For a device power vote release failure, follow the Runtime recovery steps below. |
+| `TTSLoadError` | Package discovery/integrity, native SDK/ABI, authorization or backend initialization failed; no loaded model is returned. Load-path failures are wrapped here, with the cause retained. A well-formed device ID absent from QNN topology has `native_code=-3`; no device fallback occurs. |
+| `TTSInferenceError` | Native request/generation failure or invalid audio output. Close the stream and recreate the model after successful cleanup. |
 | `TTSStateError` | Busy, closed, failed, fork-inherited model or invalid stream order; finish/release the owner before reuse. |
 
 TTS-specific exceptions derive from `TTSError` (`RuntimeError`) and expose `native_code` (an integer when available, otherwise `None`); wrapped failures retain `__cause__`. Validation errors before generation release the request claim without poisoning the model. Runtime-specific errors and unsupported Runtime settings are described in [Runtime](RUNTIME_API.md).
@@ -161,20 +160,9 @@ TTS-specific exceptions derive from `TTSError` (`RuntimeError`) and expose `nati
 
 Use nested model/stream context managers as above. A stream reserves the model immediately **until explicitly closed**, including after iterator exhaustion. A stream dropped without `close()` releases the model when it is garbage-collected; do not rely on that timing. After early `break`, the inner context closes the stream, stops further scheduling and waits for in-flight work. It does not generate the rest of the text or fabricate normal completion. The model can then serve another request.
 
-Each model permits one active request. Reusing or closing a busy model raises `TTSStateError`; close the stream and finish active calls first. Sequential successful `close()` is idempotent. A close failure remains an error on repeated model close; retained resources are not successful cleanup. Close any caller-owned Runtime only after its models. Handles are process-local: do not inherit them through fork; create them after spawn/exec. Applications own signal handling and cooperative cancellation.
+Each model permits one active request. Reusing or closing a busy model raises `TTSStateError`; close the stream and finish active calls first. Sequential successful `close()` is idempotent. A close failure remains an error on repeated model close; retained resources are not successful cleanup. Handles are process-local: do not inherit them through fork; create them after spawn/exec. Applications own signal handling and cooperative cancellation.
 
-Closing models releases their FastRPC buffers. Closing their Runtime drops its FastRPC library reference. The vendor runtime keeps its shared DMA heap file descriptor and logging socket open for the lifetime of the process, including after the last model and Runtime close.
-
-### Recovering from a device power vote release failure
-
-A device power vote release failure blocks new execution for every model sharing that
-Runtime. Keep the original exception. For a caller-owned Runtime, check
-`runtime.status()["deferred_vote_failures"]`: a nonzero count confirms the failure.
-
-1. Wait for active SDK calls to return, close open streams, then close every attached model.
-2. Close the caller-owned Runtime with `runtime.close()`. Check each close for an error and report cleanup failures.
-3. After all closes succeed, create a new `Runtime(...)` and reload the models with it.
-   If the model owns its Runtime, loading a fresh model after successful cleanup creates a new Runtime.
+Closing a model releases its FastRPC buffers and its reference to the native SDK. The vendor runtime keeps a shared DMA heap descriptor and logging socket for the lifetime of the process.
 
 ## Advanced
 

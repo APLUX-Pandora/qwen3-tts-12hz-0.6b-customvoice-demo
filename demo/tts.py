@@ -22,7 +22,7 @@ import numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
-from pandora_qwen3_tts_12hz_0_6b_customvoice import TTSModel, Runtime, TTSStateError
+from pandora_qwen3_tts_12hz_0_6b_customvoice import TTSModel, TTSStateError
 LANGUAGES = dict(zh="chinese", en="english", ja="japanese", ko="korean", de="german", fr="french", ru="russian", es="spanish", it="italian", pt="portuguese")
 from text_norm import normalize  # noqa: E402
 
@@ -42,29 +42,10 @@ def playback_stats(ready):
     return r0, slack
 
 
-def cpu_placement(value):
-    """Parse the application's CLI option using the SDK's public validation."""
-    from pandora_qwen3_tts_12hz_0_6b_customvoice import CpuOptions
-    try:
-        if value in ("default", "inherit"):
-            return CpuOptions(affinity=value)
-        if not value or any(not item.isascii() or not item.isdecimal() for item in value.split(",")):
-            raise ValueError("use default, inherit, or comma-separated CPU IDs")
-        return CpuOptions(affinity=[int(item) for item in value.split(",")])
-    except (TypeError, ValueError) as exc:
-        import argparse
-        raise argparse.ArgumentTypeError(str(exc)) from exc
-
-
 class TTS:
-    def __init__(self, model_dir=MODELS, *, cpu=None):
+    def __init__(self, model_dir=MODELS):
         t0 = time.time()
-        self._runtime = Runtime(cpu=cpu)
-        try:
-            self.engine = TTSModel.from_pretrained(MODELS if model_dir is None else model_dir, runtime=self._runtime)
-        except BaseException:
-            self._runtime.close()
-            raise
+        self.engine = TTSModel.from_pretrained(MODELS if model_dir is None else model_dir)
         self._active_stream = None
         self._cancelled = threading.Event()
         self.sr = self.engine.sample_rate
@@ -198,7 +179,6 @@ class TTS:
 
     def close(self):
         self.engine.close()
-        self._runtime.close()
 
 
 def main():
@@ -212,11 +192,10 @@ def main():
     ap.add_argument("--out-dir", default="out")
     ap.add_argument("--file", help="long text file (any length): speak_long, one wav written while it is generated")
     ap.add_argument("--ahead-s", type=float, default=None, help="--file: throttle to this much audio ahead of playback")
-    ap.add_argument("--cpu-affinity", type=cpu_placement, default="default")
     a = ap.parse_args()
     import soundfile as sf
     os.makedirs(a.out_dir, exist_ok=True)
-    tts = TTS(cpu=a.cpu_affinity)
+    tts = TTS()
     print(json.dumps({"init_s": round(tts.init_s, 2)}), flush=True)
     if a.file:
         uid = os.path.splitext(os.path.basename(a.file))[0]

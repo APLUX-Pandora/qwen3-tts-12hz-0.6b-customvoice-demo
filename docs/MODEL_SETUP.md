@@ -31,7 +31,8 @@ Pick the folder for your device's SoC:
 
 Pass a package path explicitly to installed SDK integrations, or `--models PATH` to examples/Web. The Python loader accepts a root containing `models.json` or a parent with exactly one immediate child package; an invalid or ambiguous path fails. It never downloads resources automatically.
 
-If multiple complete targets are installed, set `QWEN3_TTS_TARGET` to the target name, for example `qcs8550_qnn248`, before loading. This selects model resources; Runtime `device_id` selects an execution device and is a separate setting. Missing/corrupt roles, unsupported versions and unsafe paths fail explicitly.
+The SDK selects the target for the detected SoC when multiple targets are installed.
+QCS8275 can also use the equivalent QCS8625 target when its own target is unavailable.
 
 [SDK integration](../sdk/README.md) · [Python API](../sdk/PYTHON_API.md) · [Runtime](../sdk/RUNTIME_API.md) · [C ABI](C_ABI.md).
 
@@ -87,5 +88,5 @@ The SDK reads `models.json`, checks that the shared resources and one complete t
 | --- | --- |
 | Private repository access denied | Run `hf auth login` with an account that has access to the repository. |
 | Package files are missing or verification fails | Download the shared resources and all files for the selected target, then run the verifier above. |
-| More than one complete target is installed | Set `QWEN3_TTS_TARGET` to the intended folder name before loading. |
+| No complete target for the detected SoC | Download the shared resources and the target for your device. |
 | Device activation fails | Follow [Prepare the device](../README.md#prepare-the-device) and check activation again. |
