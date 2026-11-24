@@ -18,33 +18,25 @@ Complete [Install](../README.md#1-install) and [Get the model](../README.md#2-ge
 
 ### synthesize.py
 
-Synthesize the built-in English text and save the complete waveform. The reported duration is the audio length.
+Synthesize the built-in English text and save the complete waveform.
 
 ```bash
-python examples/python/synthesize.py
+python examples/python/synthesize.py --out speech.wav
 ```
 
-Output:
-
-```text
-speech.wav: 9.20s, finish_reason=stop
-```
+Open `speech.wav` in an audio player to hear the complete utterance.
 
 ### stream.py
 
 Synthesize the built-in English text, writing chunks of audio to disk as they arrive.
 
 ```bash
-python examples/python/stream.py
+python examples/python/stream.py --out stream.wav
 ```
 
-Output:
+Open `stream.wav` in an audio player to hear the audio saved during streaming.
 
-```text
-speech.wav: finish_reason=stop
-```
-
-Both examples use the SDK's default Runtime and write to `speech.wav`. Use `--out` to keep separate files, `--models` to select another package, or `--language` and `--speaker` to select the input language and voice. Start either script with `--help` for all options. See the [Runtime guide](../sdk/RUNTIME_API.md) for custom hardware settings.
+Both scripts default to `speech.wav` when `--out` is omitted. Use `--out` to choose a filename, `--models` to select another package, or `--language` and `--speaker` to select the input language and voice. Start either script with `--help` for all options. See the [Runtime guide](../sdk/RUNTIME_API.md) for custom hardware settings.
 
 ## C example
 
@@ -60,13 +52,9 @@ cc -std=c99 -Wall -Wextra -Werror -I sdk/include examples/c/synthesize.c -L sdk/
 examples/c/synthesize models native.wav zh
 ```
 
-Output:
+Open `native.wav` in an audio player to hear the result.
 
-```text
-native.wav: 10.00s, end_reason=1
-```
-
-Arguments are`MODEL_DIRECTORY OUTPUT_WAV [zh|en] [TEXT]`; the optional language defaults to `en`. The model directory contains `models.json` and its required resources. The optional `TEXT` replaces the fixed text for the selected language. The client writes mono PCM16 WAV incrementally. See [C ABI integration](../docs/C_ABI.md#build-and-link) for build/link details and ownership rules.
+Arguments are `MODEL_DIRECTORY OUTPUT_WAV [zh|en] [TEXT]`; the optional language defaults to `en`. The model directory contains `models.json` and its required resources. The optional `TEXT` replaces the fixed text for the selected language. The client writes mono PCM16 WAV incrementally. See [C ABI integration](../docs/C_ABI.md#build-and-link) for build/link details and ownership rules.
 
 ## Reference
 

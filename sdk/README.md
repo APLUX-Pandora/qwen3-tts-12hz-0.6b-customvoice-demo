@@ -31,14 +31,17 @@ See [native compatibility](../docs/MODEL_SETUP.md#environment-details) for Linux
 From the Demo root in the activated environment:
 
 ```python
+import soundfile as sf
 from pandora_qwen3_tts_12hz_0_6b_customvoice import TTSModel
 
 with TTSModel.from_pretrained("models") as model:
     result = model.synthesize(
         "你好，欢迎使用语音合成。今天，我们用清晰自然的声音，把文字变成可以听见的表达。",
         speaker="vivian", language="zh")
-    print(result.sample_rate, result.duration_s, result.finish_reason)
+    sf.write("speech.wav", result.audio, result.sample_rate)
 ```
+
+Open `speech.wav` in an audio player to hear the result.
 
 Pass the path to your model package when integrating from another directory. Saving and playback belong to the application.
 

@@ -82,14 +82,17 @@ Open `http://<device-ip>:8765/` and select a voice and text language. Stop it wi
 In the same environment, from the Demo root:
 
 ```python
+import soundfile as sf
 from pandora_qwen3_tts_12hz_0_6b_customvoice import TTSModel
 
 with TTSModel.from_pretrained("models") as model:
     result = model.synthesize(
         "你好，欢迎使用语音合成。今天，我们用清晰自然的声音，把文字变成可以听见的表达。",
         speaker="vivian", language="zh")
-    print(result.sample_rate, result.duration_s, result.finish_reason)
+    sf.write("speech.wav", result.audio, result.sample_rate)
 ```
+
+Open `speech.wav` in an audio player to hear the result.
 
 More in the [Python API](sdk/PYTHON_API.md) and [examples](examples/README.md).
 
