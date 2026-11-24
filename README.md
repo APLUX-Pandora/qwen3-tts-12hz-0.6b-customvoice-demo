@@ -52,16 +52,16 @@ This installs the SDK, the Web Demo and the Hugging Face CLI. To use only the SD
 
 ## 2. Get the model
 
-Download the shared resources and the target for your device. This example uses QCS8550:
+Download the shared files and one device target. The commands below use QCS8550; for another device, use the folder in the [targets table](docs/MODEL_SETUP.md#targets).
+
+For a private model, run `hf auth login` first.
 
 ```bash
 hf download APLUX-Pandora/Qwen3-TTS-12Hz-0.6B-CustomVoice --local-dir models --exclude "targets/*" --exclude "media/*" --exclude README.md --exclude .gitattributes
 hf download APLUX-Pandora/Qwen3-TTS-12Hz-0.6B-CustomVoice --local-dir models --include "targets/qcs8550_qnn248/*"
 ```
 
-For a private repository, run `hf auth login` first. Available targets and the folder layout are in [Model setup](docs/MODEL_SETUP.md).
-
-For another device, replace `qcs8550_qnn248` in both the target download and verification commands with the exact folder name from the [Targets table](docs/MODEL_SETUP.md#targets). If switching devices, move the old `models/targets/` folder out or start in a fresh Demo checkout, then run both download commands again. Once both downloads finish, run the verification command below before using the model. Verify again after every update. If verification fails, repeat both downloads and verify again.
+Verify the downloaded target:
 
 ```bash
 python models/verify_model_package.py models --target "qcs8550_qnn248"
